@@ -1,0 +1,401 @@
+package org.myorg; // package 
+
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.DoubleWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.input.MultipleInputs;
+import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+
+// all libraries imported 
+
+public class SalesDriver { // created driver class
+	public static void main(String[] args) throws Exception{
+		
+	Configuration conf = new Configuration(); // created object of  Configuration
+	 if (args.length != 6) // if the line of command is not 6 then show error and exit system
+	 {
+	 System.err.println("Usage: WordCount<input path><output path>");
+	 System.exit(-1);
+	 }
+	 Job job1; // created job1
+	 job1=Job.getInstance(conf, "Job_1");  // created instance of a job 1 
+	 job1.setJarByClass(SalesDriver.class); // set a driver class for job 1 
+	 
+	//assigning mapper reducer classes for job 1 
+	 job1.setMapperClass(Sales_mapper1.class);
+	 job1.setReducerClass(Sales_reducer1.class);
+	 
+	 
+	 // assigning input and output path
+	 FileInputFormat.addInputPath(job1, new Path(args[1]));
+	 FileOutputFormat.setOutputPath(job1, new Path(args[2]));
+	 
+	// setting input and output key values format 
+	 job1.setMapOutputKeyClass(Text.class);
+	 job1.setMapOutputValueClass(DoubleWritable.class);
+	 job1.setOutputKeyClass(Text.class);
+	 job1.setOutputValueClass(DoubleWritable.class);
+	 
+	 Job job2; // created job2 
+	 job2=Job.getInstance(conf, "Job_2"); // created instance of a job 2 
+	 job2.setJarByClass(SalesDriver.class); // set a driver class for job 2 
+	 
+	 
+	 //assigning mapper reducer classes for job 2 
+	 job2.setMapperClass(Sales_mapper2.class); 
+	 job2.setReducerClass(Sales_reducer2.class);
+	 
+	 
+	 // assigning input and output path
+	 FileInputFormat.addInputPath(job2, new Path(args[1]));
+	 FileOutputFormat.setOutputPath(job2, new Path(args[3]));
+	 
+	 // setting input and output key values format 
+	 job2.setMapOutputKeyClass(Text.class);
+	 job2.setMapOutputValueClass(DoubleWritable.class);
+	 job2.setOutputKeyClass(Text.class);
+	 job2.setOutputValueClass(DoubleWritable.class);
+	 
+
+	 
+	 job1.waitForCompletion(true); // waiting for these jobs to be executed as we wants to 	
+	 job2.waitForCompletion(true);  //use the output of these jobs into next jobs 
+	 	 
+	 Job job3; // created job3 
+	 job3=Job.getInstance(conf, "Job_3");  // created instance of a job 3 
+	 job3.setJarByClass(SalesDriver.class); // set a driver class for job  3
+	 
+	 
+	//assigning mapper reducer classes for job 3 
+	 job3.setMapperClass(Sales_mapper3.class);
+	 job3.setReducerClass(Sales_reducer3.class);
+	 
+	 job3.setMapOutputKeyClass(Text.class);
+	 job3.setMapOutputValueClass(Text.class);
+	 job3.setOutputKeyClass(Text.class);
+	 job3.setOutputValueClass(Text.class);
+	 
+	// assigning input and output path
+	 FileInputFormat.addInputPath(job3, new Path(args[3]));
+	 FileOutputFormat.setOutputPath(job3, new Path(args[4]));
+	 
+	
+	 job3.waitForCompletion(true); // waiting for job3 to be executed 
+	 
+	 Job job4;  // created job4 
+	 job4=Job.getInstance(conf, "Job_4");  // created instance of a job 4  
+	 job4.setJarByClass(SalesDriver.class); // set a driver class for job  4
+	 
+	 
+	//assigning mapper reducer classes for job 4 
+	 job4.setMapperClass(Sales_mapper4.class);
+	 job4.setMapperClass(Sales_mapper5.class);
+	 job4.setReducerClass(Sales_reducer4.class);
+	 
+	 
+	// assigning input and output path
+	 MultipleInputs.addInputPath(job4, new Path(args[2]), TextInputFormat.class, Sales_mapper4.class);
+	 MultipleInputs.addInputPath(job4, new Path(args[4]), TextInputFormat.class, Sales_mapper5.class);
+	 FileOutputFormat.setOutputPath(job4, new Path(args[5]));
+	 
+	// setting input and output key values format 
+	 job4.setMapOutputKeyClass(Text.class);
+	 job4.setMapOutputValueClass(Text.class);
+	 job4.setOutputKeyClass(Text.class);
+	 job4.setOutputValueClass(DoubleWritable.class);
+	 	 
+	 job4.waitForCompletion(true); // waiting for last job to be executed 
+	 
+	 }
+
+}
+
+
+
+
+package org.myorg;
+import java.io.IOException;
+
+import org.apache.hadoop.io.DoubleWritable;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Mapper;
+public class Sales_mapper1 extends Mapper<LongWritable, Text, Text, DoubleWritable> // first two are input types and last two are output types
+{
+	 private static Text statecategory = new Text();     // created a variable of hadoop data type called Text
+	 private static DoubleWritable sales = new DoubleWritable(); // created a variable of hadoop data type called DoubleWritable
+	 @Override
+	 public void map(LongWritable key, Text value, Context context)
+	 throws IOException, InterruptedException
+	 {
+		 String[] temporaryvariable = value.toString().split(",");    // reading a line and spliting by coma 
+		 //and converting it to string from Text
+		 String information = temporaryvariable[9] + "," + temporaryvariable[13]; // assigned state and category name to a java string variable 
+		 statecategory.set(information); // converting string variable to Text varaible and assigning it to statecategory
+		
+		 double temp_sales = Double.parseDouble(temporaryvariable[15].trim()); // converted string value to double
+		 sales.set(temp_sales);  // setting sales variable 
+		 context.write(statecategory, sales); // writing both variable into context file with hadoop datatypes
+		 }
+}
+
+
+
+
+package org.myorg;
+import java.io.IOException;
+import org.apache.hadoop.io.DoubleWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Reducer;
+public class Sales_reducer1 extends Reducer<Text, DoubleWritable, Text, DoubleWritable>  //first two are input types and last two are output types
+{
+	DoubleWritable totalsales = new DoubleWritable(); // created DoubleWritable variable 
+ @Override
+ public void reduce(Text key, Iterable<DoubleWritable> values, Context context) 
+ throws IOException, InterruptedException
+ {
+	 double sale = 0;  // temporary variable 
+	 for (DoubleWritable value : values) // runs up to last element of ierative varaible 
+	 {
+	 	double double_sale = value.get(); // getting value from value 
+	     sale = sale + double_sale; // summing all element up
+	 }
+	 
+	 totalsales.set(Math.round(sale * 100.0) / 100.0);  // assigned totalsales to hadoop dataype with rounding 
+	 context.write(key,totalsales);  //  writting all information in hadoop datatype format in context file 
+	 
+ }
+ 	
+}
+
+
+
+
+
+
+package org.myorg;
+import java.io.IOException;
+
+import org.apache.hadoop.io.DoubleWritable;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Mapper;
+public class Sales_mapper2 extends Mapper<LongWritable, Text, Text, DoubleWritable> //first two are input types and last two are output types
+{
+	 private static Text state_cat_subcat = new Text(); // created Text variable 
+	 private static DoubleWritable sales = new DoubleWritable(); // created DoubleWritable variable
+	 @Override
+	 public void map(LongWritable key, Text value, Context context)
+	 throws IOException, InterruptedException
+	 {
+		 String[] temporaryvariable = value.toString().split(","); // splited line by coma and converted each value into string 
+		 String information = temporaryvariable[9] + "," + temporaryvariable[13] + "," + temporaryvariable[14];  // we have stored state, 
+		 //category and sub-category value into information variable.
+		 state_cat_subcat.set(information); // setting a variable up
+		
+		 double temp_sales = Double.parseDouble(temporaryvariable[15].trim()); // assigning sales to temporary variable 
+		 sales.set(temp_sales); // stored sales in hadoop datatype
+		 context.write(state_cat_subcat, sales); // writting all information in hadoop datatype format in context file 
+		 }
+}
+
+
+
+
+
+package org.myorg;
+import java.io.IOException;
+import org.apache.hadoop.io.DoubleWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Reducer;
+public class Sales_reducer2 extends Reducer<Text, DoubleWritable, Text, DoubleWritable> //first two are input types and last two are output types
+{
+	DoubleWritable totalsubsales = new DoubleWritable();  // created DoubleWritable variable 
+ @Override
+ public void reduce(Text key, Iterable<DoubleWritable> values, Context context)
+ throws IOException, InterruptedException
+ {
+	 double sub_sale = 0;    // temporary variable 
+	 for (DoubleWritable value : values)  // runs up to last element of ierative varaible 
+	 {
+	 	double double_sale = value.get();    // getting value from value  
+	     sub_sale = sub_sale + double_sale;  // summing all element up
+	 } 
+	 totalsubsales.set(Math.round(sub_sale * 100.0) / 100.0);   // assigned totalsales to hadoop dataype with rounding 
+	 context.write(key,totalsubsales);  //  writting all information in hadoop datatype format in context file 
+	 
+ }
+ 	
+}
+
+
+
+
+
+
+
+package org.myorg;
+import java.io.IOException;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Mapper;
+public class Sales_mapper3 extends Mapper<LongWritable, Text, Text, Text> //first two are input types and last two are output types
+{ 
+	 private static Text state_and_category = new Text(); // created Text variable 
+	 private  static Text subcategory_and__sales = new Text(); // created Text variable  
+	 @Override
+	 public void map(LongWritable key, Text value, Context context)
+	 throws IOException, InterruptedException
+	 {
+		 String[] tempvariable1 = value.toString().split("\t");    // splited line by tab space and converted each value into string  
+		 String[] tempvariable2 = tempvariable1[0].toString().split(","); // again splited line by coma and converted each value into string  
+		  
+		 state_and_category = new Text(tempvariable2[0]+","+tempvariable2[1]); // stored state abd category name into hadoop  datatype variable 
+		
+		 String sub_sale = tempvariable2[2] + tempvariable1[1]; // stored subcategory name and its sales in to one variable to pass it as a value 
+		 subcategory_and__sales.set(sub_sale);   // stored data into hadoop datatype 
+		 
+		 context.write(state_and_category, subcategory_and__sales);// writting all information in hadoop datatype format in context file 
+		 }
+}
+
+
+
+package org.myorg;
+import java.io.IOException;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Reducer;
+public class Sales_reducer3 extends Reducer<Text, Text, Text, Text> //first two are input types and last two are output types
+{
+	Text top_subcat = new Text();  // created Text variable 
+ @Override
+ public void reduce(Text key, Iterable<Text> values, Context context)
+ throws IOException, InterruptedException
+ {
+	 String tempsubcategory = new String(); // temporary variable 
+	 double tempsale = 0;
+	 for (Text value : values)     // runs up to last element of ierative varaible 
+	 {
+		 String[] data = value.toString().split(",");  // as our  each element of  values contains a combination of 2 things separated by comma ,
+		 //we are separating those two things and storing into array
+		 
+		 double datasale = Double.parseDouble(data[1]); // assignment 
+		 if (tempsale < datasale) // it is comparing if the current element's sales are higher than previous element's sales.
+		 {
+			 //if yes then it will store those current element's details 
+			 tempsale = datasale;
+			 tempsubcategory = data[0];
+		 }
+	 }
+	 top_subcat = new Text(tempsubcategory + "," + tempsale  ); //saving top sub category
+	 context.write(key, top_subcat);	  //  writting all information in hadoop datatype format in context file 
+ }
+}
+  
+
+
+
+
+
+package org.myorg;
+import java.io.IOException;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Mapper;
+public class Sales_mapper4 extends Mapper<LongWritable, Text, Text, Text>  //first two are input types and last two are output types
+{
+	 private static Text citycategory = new Text(); // created Text variable 
+	 private  static Text totalsales = new Text();  // created Text variable 
+	 @Override
+	 public void map(LongWritable key, Text value, Context context)
+	 throws IOException, InterruptedException
+	 {
+		 String[] temporaryvariable = value.toString().split("\t");   // splited line by tab space and converted each value into string
+		 String information = temporaryvariable[0]; // stored state name into information variable 	
+		 citycategory.set(information); // setting hadoop variable up  with state name 
+		
+		 String tempsales = temporaryvariable[1];  // stored sales of a state 
+		 totalsales = new Text("totalsales," + tempsales);   // setting hadoop variable up  with state's  sales
+ 		 context.write(citycategory, totalsales);   // writting all information in hadoop datatype format in context file 
+		 }
+}
+
+
+
+
+
+
+package org.myorg;
+import java.io.IOException;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Mapper;
+public class Sales_mapper5 extends Mapper<LongWritable, Text, Text, Text> //first two are input types and last two are output types
+{
+	 private static Text citycategory = new Text();   // created Text variable 
+	 private  static Text topsubsales = new Text();   // created Text variable 
+	 @Override
+	 public void map(LongWritable key, Text value, Context context)
+	 throws IOException, InterruptedException
+	 {
+		 String[] temporaryvariable = value.toString().split("\t");  // splited line by tab space and converted each value into string
+		 String information = temporaryvariable[0]; // storing state name 
+		 citycategory.set(information);   // setting hadoop variable up with Text datatype 
+		
+		 String tempsales = temporaryvariable[1];  // stored totalsales of state
+		 topsubsales = new Text("topsubcategory," + tempsales); // setting total sales up as Text format 
+		 context.write(citycategory, topsubsales); //  writting all information in hadoop datatype format in context file 
+		 }
+}
+
+
+
+
+
+package org.myorg;
+import java.io.IOException;
+import java.util.Iterator;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Reducer;
+public class Sales_reducer4 extends Reducer<Text, Text, Text, Text> //first two are input types and last two are output types
+{
+	Text finalinformation = new Text(); // created Text  variable 
+ @Override
+ public void reduce(Text key, Iterable<Text> values, Context context) 
+ throws IOException, InterruptedException
+ {
+	 Iterator <Text> valuesIter = values.iterator();   // created iterative variable 
+	 double topsubvalue=0 , overallsales = 0; // temporary variables
+	 String topsubname = new String();     // temporary variable 
+	 while(valuesIter.hasNext())     // runs up to last element of ierative varaible 
+	 {
+		String temp = valuesIter.next().toString(); // taking elements one by one 
+		String[] data = temp.split(",");   // splitting it by comma 
+		if(data[0].equals("totalsales"))  // if the first element that si prefix that we have assigned to our mapper's value  
+			//is "totalsales" then the second element is counted as totalsales
+		{
+			overallsales= Double.parseDouble(data[1]);
+		}
+		else if(data[0].equals("topsubcategory"))   // if the first element that si prefix that we have assigned to our mapper's value  
+			//is "totalsales" then the second element is counted as subcategory name and third element will be counted as top subcategory values 
+		{
+			topsubname = data[1];
+			topsubvalue= Double.parseDouble(data[2]);
+		}
+	  }
+	 
+	 finalinformation = new Text(overallsales + "top subcategory is  " + topsubname +" " + topsubvalue); // assigning specific formated output with values
+	 context.write(key,finalinformation); //  writting all information in hadoop datatype format in context file 
+ }
+	 
+ 
+ 	
+}
+
+
+
+
